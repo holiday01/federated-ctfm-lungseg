@@ -1,0 +1,10 @@
+torch>=2.4
+monai>=1.4
+numpy
+scipy
+SimpleITK
+pydicom
+huggingface_hub
+safetensors
+matplotlib
+idc-index
