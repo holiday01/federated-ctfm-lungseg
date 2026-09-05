@@ -1,6 +1,6 @@
 # federated-ctfm-lungseg
 
-Code for *Simulated federated fine-tuning of a CT foundation model for ROI-based lung tumor
+Code for *Federated fine-tuning of a CT foundation model for ROI-based lung tumor
 segmentation across three heterogeneous cohorts*. Local, centralized and simulated federated
 (FedAvg and ablations) fine-tuning of the CT-FM SegResNet (`project-lighter/ct_fm_segresnet`)
 on three cohorts, with leave-one-site-out evaluation and patient-level paired statistics.
