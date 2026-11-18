@@ -48,7 +48,7 @@ def process(tag, device):
             res.update(new)
             print(f"  {tag} {site}/{split}: n={len(res['ids'])} dice_lcc={np.mean(new['dice_lcc']):.4f} hd95_lcc={np.nanmedian(new['hd95_lcc']):.1f} (raw dice {np.mean(res['dice']):.4f}, hd95 {np.nanmedian(res['hd95']):.1f})", flush=True)
     for site, sp in r.get("personalized", {}).items():
-        pass  # personalised results keep their original metric set
+        pass  # personalized results keep their original metric set
     diffs = np.array(diffs)
     print(f"  {tag}: |dDice| mean {diffs.mean():.2e}, p99 {np.percentile(diffs, 99):.2e}, max {max_abs:.2e} over {n} cases", flush=True)
     # fp16 sliding-window inference under cuDNN autotuning is not bit-reproducible; a few voxels near

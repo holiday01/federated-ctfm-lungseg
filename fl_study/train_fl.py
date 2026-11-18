@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Study 3 trainer: local, centralised and federated fine-tuning of the CT-FM SegResNet for
-3D lung-tumour segmentation across three sites (TW = in-house, NL = NSCLC-Radiomics,
+"""Study 3 trainer: local, centralized and federated fine-tuning of the CT-FM SegResNet for
+3D lung-tumor segmentation across three sites (TW = in-house, NL = NSCLC-Radiomics,
 US = NSCLC Radiogenomics). One process, one GPU; federated learning is simulated cross-silo
 (every client trains every round, sequentially, on the same device).
 
@@ -28,8 +28,10 @@ from scipy import ndimage
 
 ROOT = Path("/home/holiday/lung_ct")
 CACHE = ROOT / "data" / "fl_cache"
-RESULTS = ROOT / "results" / "fl"
-CKPT = ROOT / "data" / "fl_ckpt"
+# FL_RESULTS_DIR / FL_CKPT_DIR redirect the outputs of runs that must not merge with the main grid
+# (e.g. the fixed-split replications of the first journal revision).
+RESULTS = Path(os.environ.get("FL_RESULTS_DIR", ROOT / "results" / "fl"))
+CKPT = Path(os.environ.get("FL_CKPT_DIR", ROOT / "data" / "fl_ckpt"))
 PATCH = (96, 96, 96)
 SITE_ORDER = ["TW", "NL", "US"]
 # CT-FM intensity convention (model card): HU -1024..2048 -> 0..1. Stored volumes are int16 HU clipped to [-1000, 400].
@@ -100,7 +102,7 @@ def rand_patch(img, msk, fg, rng, fg_prob=0.8):
 
 def np_augment(img, msk, rng):
     """Study 2's on-patch augmentation (scripts/train_seg.py np_augment), unchanged: flips, rot90,
-    gamma, intensity scale/shift, Gaussian noise. img is the normalised patch in [0, 1]."""
+    gamma, intensity scale/shift, Gaussian noise. img is the normalized patch in [0, 1]."""
     for ax in range(3):
         if rng.random() < 0.5:
             img = np.flip(img, ax); msk = np.flip(msk, ax)
@@ -354,6 +356,9 @@ def main():
     ap.add_argument("--sites", required=True, help="comma list from TW,NL,US")
     ap.add_argument("--init", choices=["ctfm", "scratch"], default="ctfm")
     ap.add_argument("--seed", type=int, default=7)
+    ap.add_argument("--split-seed", type=int, default=None,
+                    help="seed of the patient-level split (default: --seed). With a fixed --split-seed and varying --seed, "
+                         "runs share train/val/test cases and differ only in initialization, patch sampling and augmentation")
     ap.add_argument("--lr", type=float, default=3e-4)
     ap.add_argument("--wd", type=float, default=1e-5)
     ap.add_argument("--batch", type=int, default=4)
@@ -382,7 +387,8 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     train_keys = [k for k in SITE_ORDER if k in cfg.sites.split(",")]
     assert train_keys, "no valid sites"
-    all_sites = {k: Site(k, cfg.seed) for k in SITE_ORDER if (CACHE / k / "manifest.json").exists()}
+    split_seed = cfg.seed if cfg.split_seed is None else cfg.split_seed
+    all_sites = {k: Site(k, split_seed) for k in SITE_ORDER if (CACHE / k / "manifest.json").exists()}
     sites = [all_sites[k] for k in train_keys]
     variant = ""
     if cfg.mode == "central" and cfg.site_balanced:
@@ -393,7 +399,7 @@ def main():
     tag = cfg.tag or f"{variant or cfg.mode}_{'-'.join(train_keys)}_{cfg.init}_s{cfg.seed}"
     RESULTS.mkdir(parents=True, exist_ok=True); CKPT.mkdir(parents=True, exist_ok=True)
     ts = time.strftime("%Y%m%d_%H%M%S")
-    print(f"=== {tag} ({ts}) mode={cfg.mode} sites={train_keys} init={cfg.init} seed={cfg.seed}", flush=True)
+    print(f"=== {tag} ({ts}) mode={cfg.mode} sites={train_keys} init={cfg.init} seed={cfg.seed} split_seed={split_seed}", flush=True)
     for s in sites:
         print(f"  {s.key}: train={len(s.split['train'])} val={len(s.split['val'])} test={len(s.split['test'])} volumes "
               f"({len({r['patient'] for r in s.split['train']})} train patients)", flush=True)
@@ -514,7 +520,7 @@ def main():
             sm.close()
             model.load_state_dict(pstate)
             personalized[s.key] = {"val_best": pbest, "history": phist, "test": evaluate(model, s, "test", device, full=True)}
-            print(f"  [{tag}] personalised {s.key}: val={pbest:.4f} test dice={np.mean(personalized[s.key]['test']['dice']):.4f}", flush=True)
+            print(f"  [{tag}] personalized {s.key}: val={pbest:.4f} test dice={np.mean(personalized[s.key]['test']['dice']):.4f}", flush=True)
     t_eval += time.time() - t0
 
     def summ(res):
@@ -525,7 +531,7 @@ def main():
                 "hd95_lcc_median": float(np.nanmedian(res["hd95_lcc"])) if "hd95_lcc" in res else None}
     summary = {k: {sp: summ(r) for sp, r in v.items()} for k, v in results.items()}
     out = {"tag": tag, "timestamp": ts, "mode": cfg.mode, "variant": variant or cfg.mode, "train_sites": train_keys, "init": cfg.init,
-           "seed": cfg.seed, "config": vars(cfg), "model": minfo, "splits": {k: s.describe() for k, s in all_sites.items()},
+           "seed": cfg.seed, "split_seed": split_seed, "config": vars(cfg), "model": minfo, "splits": {k: s.describe() for k, s in all_sites.items()},
            "history": history, "best": best, "results": results, "summary": summary, "personalized": personalized,
            "comm_bytes": int(comm_bytes), "time_train_s": t_train, "time_eval_s": t_eval, "time_total_s": time.time() - t_start,
            "checkpoint": str(best_path), "checkpoint_format": "fedbn" if cfg.fedbn else "state_dict", "metrics_version": METRICS_VERSION}

@@ -10,8 +10,8 @@ from pathlib import Path
 ROOT = Path("/home/holiday/lung_ct")
 PY = str(ROOT / ".venv" / "bin" / "python")
 TRAIN = str(ROOT / "fl_study" / "train_fl.py")
-RESULTS = ROOT / "results" / "fl"
-LOGS = ROOT / "logs" / "fl"
+RESULTS = Path(os.environ.get("FL_RESULTS_DIR", ROOT / "results" / "fl"))   # train_fl.py reads the same variable
+LOGS = Path(os.environ.get("FL_LOGS_DIR", ROOT / "logs" / "fl"))
 SEEDS = [7, 42, 1337]
 SITES = ["TW", "NL", "US"]
 ITERS = int(os.environ.get("FL_ITERS_PER_SITE", "6000"))   # gradient steps per participating site
@@ -71,7 +71,7 @@ def grid_ablation(seeds=SEEDS, lr=None, init="ctfm"):
 
 
 def grid_fedbn(seeds=SEEDS, lr=None, init="ctfm"):
-    """FedBN (BatchNorm kept local) with size weighting, all three sites, + 500-it personalisation
+    """FedBN (BatchNorm kept local) with size weighting, all three sites, + 500-it personalization
     so it is comparable to both fedavg_all and its fine-tuned variant."""
     extra = ["--lr", lr[init]] if lr else []
     return [job(f"fedbn_TW-NL-US_{init}_s{seed}", "--mode", "fedavg", "--sites", "TW,NL,US", "--init", init, "--seed", seed,

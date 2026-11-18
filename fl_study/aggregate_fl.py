@@ -28,8 +28,13 @@ from scipy import stats
 
 ROOT = Path("/home/holiday/lung_ct")
 RES = ROOT / "results" / "fl"
-TAB = ROOT / "manuscripts" / "study3_fl" / "tables"
+TAB = ROOT / "manuscripts" / __import__("os").environ.get("STUDY3_MS", "study3_fl_r1") / "tables"
 CACHE = ROOT / "data" / "fl_cache"
+
+def site_display(tex):
+    """Printed code of the in-house site is IH (data keys stay TW); see make_figs_fl.relabel."""
+    return re.sub(r"\bTW\b", "IH", tex)
+
 SITES = ["TW", "NL", "US"]
 SITE_NAMES = {"TW": "TW (in-house)", "NL": "NL (NSCLC-Radiomics)", "US": "US (NSCLC-Radiogenomics)"}
 ALL = "TW-NL-US"
@@ -297,7 +302,7 @@ def main():
         for k, adj in holm(pv).items():
             summary["paired"][k]["wilcoxon_p_holm"] = adj
 
-    # ---- Dice by tumour-volume band, in-federation test splits. Unit = unique lesion (Dice averaged
+    # ---- Dice by tumor-volume band, in-federation test splits. Unit = unique lesion (Dice averaged
     # over the seeds whose test split contains it); n_lesions / n_patients / n_evals all reported.
     bands = [("<1", 0, 1), ("1-10", 1, 10), ("10-50", 10, 50), (">=50", 50, 1e9)]
     for (setting, init), seeds in by.items():
@@ -380,18 +385,18 @@ def write_tables(S):
     rows = [("Local (own site)", lambda s: f"local_{s}", "test"), ("Centralized, all sites", lambda s: "central_all", "test"),
             ("FedAvg, all sites", lambda s: "fedavg_all", "test"),
             ("Centralized, site held out", lambda s: f"central_loso_{s}", "full"), ("FedAvg, site held out", lambda s: f"fedavg_loso_{s}", "full")]
-    out = ["\\begin{table}[t]\\centering\\caption{Test Dice (mean $\\pm$ SD over three seeds) per site and training setting. Held-out rows evaluate the whole site.}",
-           "\\label{tab:main}\\footnotesize\\setlength{\\tabcolsep}{4pt}\\begin{tabular}{llccc}\\toprule", "Init & Setting & TW & NL & US \\\\ \\midrule"]
+    out = ["\\begin{table}[!htb]\\centering\\caption{Test Dice (mean $\\pm$ SD over three seeds) per site and training setting. Held-out rows evaluate the whole site. \\textsuperscript{\\textdagger}Pre-training-exposed cohort: the images of almost all cases, without masks, are part of the CT-FM pre-training corpus (Table~\\ref{tab:sites}).}",
+           "\\label{tab:main}\\linespread{1}\\footnotesize\\setlength{\\tabcolsep}{4pt}\\begin{tabular}{llccc}\\toprule", "Init & Setting & TW & NL\\textsuperscript{\\textdagger} & US\\textsuperscript{\\textdagger} \\\\ \\midrule"]
     for init in ("ctfm", "scratch"):
         for name, f, split in rows:
-            out.append(f"{'CT-FM' if init == 'ctfm' else 'Scratch'} & {name} & " + " & ".join(cell(f(s), init, s, split) for s in SITES) + " \\\\")
+            out.append(f"{'CT-FM' if init == 'ctfm' else 'Random'} & {name} & " + " & ".join(cell(f(s), init, s, split) for s in SITES) + " \\\\")
         out.append("\\midrule")
     out[-1] = "\\bottomrule\\end{tabular}\\end{table}"
-    open(TAB / "tab_main.tex", "w").write("\n".join(out) + "\n")
+    open(TAB / "tab_main.tex", "w").write(site_display("\n".join(out) + "\n"))
     # paired table (full listing -> supplement; longtable so it never overflows a page)
     out = ["% Full paired-comparison listing. Belongs in the SUPPLEMENT; the main text shows a forest plot of the primary comparisons.",
            "\\begin{longtable}{llcccc}",
-           "\\caption{Paired Dice differences (A $-$ B), patient-level inference: lesion differences averaged over seeds, lesions averaged within patient; 95\\% bootstrap CIs resample patients and Wilcoxon signed-rank tests run on the patient values, Holm-adjusted within each comparison family.}\\label{tab:paired}\\\\",
+           "\\caption{Paired Dice differences (A $-$ B), patient-level inference: mask differences averaged over seeds, masks averaged within patient; 95\\% bootstrap CIs resample patients and Wilcoxon signed-rank tests run on the patient values, Holm-adjusted within each comparison family.}\\label{tab:paired}\\\\",
            "\\toprule Comparison & Site & Init & $n$ (patients) & Mean diff [95\\% CI] & $p$ (Holm) \\\\ \\midrule \\endfirsthead",
            "\\toprule Comparison & Site & Init & $n$ (patients) & Mean diff [95\\% CI] & $p$ (Holm) \\\\ \\midrule \\endhead",
            "\\bottomrule \\endlastfoot"]
@@ -399,7 +404,7 @@ def write_tables(S):
         c, site, init = k.split("|")
         out.append(f"{c.replace('_', ' ').replace('-vs-', ' vs ')} & {site} & {init} & {p['n_patients']} & {p['mean_diff']:+.3f} [{p['ci95_patient_boot'][0]:+.3f}, {p['ci95_patient_boot'][1]:+.3f}] & {p.get('wilcoxon_p_holm', float('nan')):.3g} \\\\")
     out.append("\\end{longtable}")
-    open(TAB / "tab_paired.tex", "w").write("\n".join(out) + "\n")
+    open(TAB / "tab_paired.tex", "w").write(site_display("\n".join(out) + "\n"))
 
 
 if __name__ == "__main__":

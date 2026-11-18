@@ -2,7 +2,7 @@
 """Build the unified per-site cache used by fl_study/train_fl.py.
 
 Every site ends up as data/fl_cache/<site>/<id>_img.npy (int16, 1 mm iso, HU in [-1000,400]),
-<id>_msk.npy (uint8) and manifest.json listing id, patient, shape and tumour volume. Uncompressed
+<id>_msk.npy (uint8) and manifest.json listing id, patient, shape and tumor volume. Uncompressed
 .npy files are memory-mapped by the trainer, so three sites (~14 GB) stay out of process memory.
 
 Sites:

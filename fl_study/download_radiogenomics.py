@@ -2,7 +2,7 @@
 """Download the segmentation-usable subset of TCIA 'NSCLC Radiogenomics' (Bakr et al. 2018)
 through the public NBIA REST API (anonymous access, CC BY 3.0).
 
-Stage 1 (--stage seg): download the 144 DICOM SEG series (one per patient, primary tumour).
+Stage 1 (--stage seg): download the 144 DICOM SEG series (one per patient, primary tumor).
 Stage 2 (--stage ct):  parse each SEG's ReferencedSeriesSequence and download exactly the CT
                        series it was drawn on (nothing else: no PET, scouts, reformats).
 

@@ -6,10 +6,10 @@ For each patient with a downloaded DICOM SEG and its referenced CT series:
   2. place every SEG frame on the CT slice whose ImagePositionPatient z matches (this collection's
      SEG objects carry no per-frame source-instance references, so slice position is the link),
   3. reorient to LPS, resample image (linear, air fill) and mask (nearest) to 1 mm isotropic,
-     clip HU to [-1000, 400], crop to tumour bbox + 80 mm margin  -- identical to
+     clip HU to [-1000, 400], crop to tumor bbox + 80 mm margin  -- identical to
      scripts/preprocess_seg.py and ssl_study/preprocess_external_nsclc.py,
   4. save data/external_radiogenomics_processed_1mm/rg_<pid>.npz {image:int16, mask:uint8, case:str}
-     and a QC montage PNG (axial + coronal through the tumour centre) for visual review.
+     and a QC montage PNG (axial + coronal through the tumor center) for visual review.
 
 Acquisition metadata (no PHI; TCIA identifiers are public pseudo-IDs) goes to manifest_rg.csv.
 """
